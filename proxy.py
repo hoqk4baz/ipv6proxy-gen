@@ -101,11 +101,11 @@ def zip_yukle():
 
 def main():
     global IP4
-    IP4 = requests.get("https://icanhazip.com", timeout=5).text.strip()
+    IP4 = os.popen("curl -4 -s icanhazip.com").read().strip()
     
     # IPv6 kontrolü
     try:
-        IP6 = requests.get("https://icanhazip.com", timeout=5).text.strip()
+        IP6 = os.popen("curl -6 -s icanhazip.com | cut -f1-4 -d':'").read().strip()
     except requests.RequestException:
         IP6 = None
 
