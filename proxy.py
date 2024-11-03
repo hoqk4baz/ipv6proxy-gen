@@ -46,18 +46,21 @@ def ifconfig_olustur():
             f.write(f"ifconfig eth0 inet6 add {parts[4]}/64\n")
 
 def config_3proxy():
-    users = " ".join([f"{v.split('/')[0]}:CL:{v.split('/')[1]}" for v in veri])
-    config_lines = [
-        "daemon",
-        "maxconn 1000",
-        "nscache 65536",
-        "timeouts 1 5 30 60 180 1800 15 60",
-        "setgid 65535",
-        "setuid 65535",
-        "flush",
-        "auth strong",
-        f"users {users}",
-    ]
+    with open(VERI) as veri_dosyasi:
+        config_lines = [
+            "daemon",
+            "maxconn 1000",
+            "nscache 65536",
+            "timeouts 1 5 30 60 180 1800 15 60",
+            "setgid 65535",
+            "setuid 65535",
+            "flush",
+            "auth strong",
+            f"users {' '.join(f'{line.split('/')[0]}:CL:{line.split('/')[1]}' for line in veri_dosyasi)}",
+        ]
+    
+    return "\n".join(config_lines)
+
     for line in open(VERI):
         parts = line.strip().split("/")
         config_lines.append(f"auth strong\nallow {parts[0]}\nproxy -6 -n -a -p{parts[3]} -i{IP4} -e{parts[4]}\nflush\n")
@@ -93,11 +96,11 @@ def zip_yukle():
 
 def main():
     global IP4
-    IP4 = os.popen("curl -4 -s icanhazip.com").read().strip()
+    IP4 = requests.get("https://icanhazip.com", timeout=5).text.strip()
     
     # IPv6 kontrolü
     try:
-        IP6 = os.popen("curl -6 -s icanhazip.com | cut -f1-4 -d':'").read().strip()
+        IP6 = requests.get("https://icanhazip.com", timeout=5).text.strip()
     except requests.RequestException:
         IP6 = None
 
