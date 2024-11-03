@@ -24,17 +24,33 @@ mor = '\033[0;35m'
 def yukle_3proxy():
     print(f"\n\n\t{yesil}3Proxy Yükleniyor..{renkreset}\n")
     URL = "https://github.com/keyiflerolsun/CentOS_Proxi/raw/main/Paketler/3proxy-3proxy-0.8.6.tar.gz"
-    subprocess.run(['wget', '-qO-', URL], stdout=subprocess.PIPE)
+    
+    # Dosyayı indir
+    subprocess.run(['wget', '-q', URL])
+    
+    # Dosyayı aç
+    subprocess.run(['bsdtar', '-xvf', '3proxy-3proxy-0.8.6.tar.gz'])
+    
+    # İndirilen dizine geç
     os.chdir("3proxy-3proxy-0.8.6")
+    
+    # Makefile ile derle
     subprocess.run(['make', '-f', 'Makefile.Linux'])
+    
+    # Gerekli dizinleri oluştur
     os.makedirs("/usr/local/etc/3proxy/bin", exist_ok=True)
+    
+    # Dosyaları kopyala
     subprocess.run(['cp', '-f', 'src/3proxy', '/usr/local/etc/3proxy/bin/'])
     subprocess.run(['cp', '-f', './scripts/rc.d/proxy.sh', '/etc/init.d/3proxy'])
+    
+    # İzinleri ayarla
     subprocess.run(['chmod', '+x', '/etc/init.d/3proxy'])
     subprocess.run(['chkconfig', '3proxy', 'on'])
+    
+    # Geçici dosyayı sil
     os.chdir("..")
-    subprocess.run(['rm', '-rf', '3proxy-3proxy-0.8.6'])
-
+    subprocess.run(['rm', '-rf', '3proxy-3proxy-0.8.6.tar.gz', '3proxy-3proxy-0.8.6'])
 def rastgele():
     return ''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', k=5))
 
