@@ -144,7 +144,7 @@ def socks5_yukle(socks5_port):
     subprocess.run(['iptables-save'])
 
 IP4 = os.popen("curl -4 -s icanhazip.com").read().strip()
-IP6 = requests.get('https://icanhazip.com', headers={'Connection': 'close', 'Family': 'IPv6'}).text.strip().split(':')[0]
+IP6 = os.popen("curl -6 -s icanhazip.com | cut -f1-4 -d':'").read().strip()
 
 print(f"\n\t{sari}IPv4 »{yesil} {IP4}{sari} | IPv6 için Sub »{yesil} {IP6}{renkreset}")
 print(f"\n\n\t{yesil}Gerekli Paketler Yükleniyor..{renkreset}\n")
