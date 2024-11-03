@@ -1,132 +1,112 @@
 import os
-import shutil
-import requests
-import zipfile
-import random
 import subprocess
+import random
+import string
+import requests
+import shutil
 
+# Kullanıcı bilgileri ve portlar
 KULLANICI = "tarak"
 SIFRE = "kurek"
 IPV4_PORT = 3310
 IPV6_ILK_PORT = 10000
 SOCKS5_PORT = 5110
+YOL = "/home/CentOS_Proxi_Yukle"
+VERI = f"{YOL}/veri.txt"
 
-# Renk Tanımları
-renkreset = '\033[0m'
-yesil = '\033[1;92m'
-kirmizi = '\033[1;91m'
-sari = '\033[1;93m'
-mor = '\033[0;35m'
-
+# Rastgele şifre oluşturma
 def rastgele():
-    return ''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', k=5))
+    return ''.join(random.choices(string.ascii_letters + string.digits, k=5))
 
-def ipv6_olustur():
-    ipv6_k = '0123456789abcdef'
-    return ':'.join(''.join(random.choices(ipv6_k, k=4)) for _ in range(4))
+# IPv6 adresi oluşturma
+def ipv6_olustur(ip6_subnet):
+    ipv6_segments = [f"{random.choice('0123456789abcdef')}{random.choice('0123456789abcdef')}" for _ in range(4)]
+    return f"{ip6_subnet}:{':'.join(ipv6_segments)}"
 
-def veri_olustur(adet):
-    with open('veri.txt', 'w') as f:
-        for port in range(IPV6_ILK_PORT, IPV6_ILK_PORT + adet):
-            f.write(f"{KULLANICI}{rastgele()}/{SIFRE}{rastgele()}/{IP4}/{port}/{ipv6_olustur()}\n")
-
-def iptable_olustur():
-    with open('iptable_yapilandir.sh', 'w') as f:
-        for port in range(IPV6_ILK_PORT, IPV6_ILK_PORT + 500):  # 500 proxy için örnek
-            f.write(f"iptables -I INPUT -p tcp --dport {port} -m state --state NEW -j ACCEPT\n")
-
-def ifconfig_olustur():
-    return f"ifconfig eth0 inet {IP4}/24"
-
-def config_3proxy():
-    with open('/usr/local/etc/3proxy/3proxy.cfg', 'w') as f:
-        f.write("daemon\n")
-        f.write("maxconn 1000\n")
-        f.write("nscache 65536\n")
-        f.write("timeouts 1 5 30 60 180 1800 15 60\n")
-        f.write("setgid 65535\n")
-        f.write("setuid 65535\n")
-        f.write("flush\n")
-        f.write("auth strong\n")
-        f.write("users {0}:{1}\n".format(KULLANICI, SIFRE))
-
+# 3Proxy yükleme
 def yukle_3proxy():
-    print("\n\n\t{}3Proxy Yükleniyor..{}".format(yesil, renkreset))
+    print("3Proxy Yükleniyor...")
     url = "https://github.com/keyiflerolsun/CentOS_Proxi/raw/main/Paketler/3proxy-3proxy-0.8.6.tar.gz"
-    os.system(f"wget -qO- {url} | tar -zxvf -")  # -z bayrağı eklendi
+    subprocess.run(["wget", "-qO-", url], stdout=subprocess.PIPE)
+    subprocess.run(["bsdtar", "-xvf-", "3proxy-3proxy-0.8.6.tar.gz"])
     os.chdir("3proxy-3proxy-0.8.6")
-    os.system("make -f Makefile.Linux")
+    subprocess.run(["make", "-f", "Makefile.Linux"])
     os.makedirs("/usr/local/etc/3proxy/bin", exist_ok=True)
-    os.system("cp -f src/3proxy /usr/local/etc/3proxy/bin/")
-    os.system("cp -f ./scripts/rc.d/proxy.sh /etc/init.d/3proxy")
-    os.system("chmod +x /etc/init.d/3proxy")
-    os.system("chkconfig 3proxy on")
+    shutil.copy("src/3proxy", "/usr/local/etc/3proxy/bin/")
+    shutil.copy("./scripts/rc.d/proxy.sh", "/etc/init.d/3proxy")
+    os.chmod("/etc/init.d/3proxy", 0o755)
+    subprocess.run(["chkconfig", "3proxy", "on"])
     os.chdir("..")
-    os.system("rm -rf 3proxy-3proxy-0.8.6")
+    shutil.rmtree("3proxy-3proxy-0.8.6")
 
-def squid_yukle():
-    print("\n\n\t{}Squid Yükleniyor..{}".format(yesil, renkreset))
-    os.system("yum install nano dos2unix squid httpd-tools -y")
-    os.system(f"htpasswd -bc /etc/squid/passwd {KULLANICI} {SIFRE}")
-    with open('/etc/squid/squid.conf', 'w') as f:
-        f.write("auth_param basic program /usr/lib64/squid/basic_ncsa_auth /etc/squid/passwd\n")
-        f.write("auth_param basic realm proxy\n")
-        f.write("acl authenticated proxy_auth REQUIRED\n")
-        f.write("http_access allow authenticated\n")
-        f.write(f"http_port 0.0.0.0:{IPV4_PORT}\n")
-        f.write("http_access deny all\n")
-    os.system("systemctl restart squid.service && systemctl enable squid.service")
-    os.system(f"iptables -I INPUT -p tcp --dport {IPV4_PORT} -j ACCEPT")
+# Veriyi oluşturma
+def veri_olustur(ip4, ip6_subnet, adet):
+    with open(VERI, "w") as f:
+        for port in range(IPV6_ILK_PORT, IPV6_ILK_PORT + adet):
+            ip6_address = ipv6_olustur(ip6_subnet)
+            f.write(f"{KULLANICI}{rastgele()}/{SIFRE}{rastgele()}/{ip4}/{port}/{ip6_address}\n")
 
-def socks5_yukle():
-    print("\n\n\t{}Dante SOCKS5 Yükleniyor..{}".format(yesil, renkreset))
-    os.system(f"wget -qO dante_socks.sh https://raw.githubusercontent.com/Lozy/danted/master/install_centos.sh")
-    os.system("chmod +x dante_socks.sh")
-    os.system(f"./dante_socks.sh --port={SOCKS5_PORT} --user={KULLANICI} --passwd={SIFRE}")
-    os.system("rm -rf dante_socks.sh")
-    os.system(f"iptables -I INPUT -p tcp --dport {SOCKS5_PORT} -j ACCEPT")
+# iptables yapılandırma
+def iptable_olustur():
+    with open(f"{YOL}/iptable_yapilandir.sh", "w") as f:
+        with open(VERI, "r") as veri_file:
+            for line in veri_file:
+                port = line.split("/")[3]
+                f.write(f"iptables -I INPUT -p tcp --dport {port} -m state --state NEW -j ACCEPT\n")
 
-def jq_yukle():
-    url = "https://github.com/keyiflerolsun/CentOS_Proxi/raw/main/Paketler/jq-linux64"
-    os.system(f"wget -qO jq {url}")
-    os.system("chmod +x jq")
-    if not os.path.exists("/usr/bin/jq"):
-        shutil.move("jq", "/usr/bin")
-    else:
-        print("jq zaten mevcut.")
+# ifconfig yapılandırma
+def ifconfig_olustur():
+    with open(f"{YOL}/ifconfig_yapilandir.sh", "w") as f:
+        with open(VERI, "r") as veri_file:
+            for line in veri_file:
+                ipv6 = line.split("/")[4].strip()
+                f.write(f"ifconfig eth0 inet6 add {ipv6}/64\n")
 
+# 3Proxy config oluşturma
+def config_3proxy():
+    with open("/usr/local/etc/3proxy/3proxy.cfg", "w") as f:
+        f.write("daemon\nmaxconn 1000\nnscache 65536\ntimeouts 1 5 30 60 180 1800 15 60\n")
+        f.write("setgid 65535\nsetuid 65535\nflush\nauth strong\n\n")
+        f.write(f"users {KULLANICI}:CL:{SIFRE}\n\n")
+        with open(VERI, "r") as veri_file:
+            for line in veri_file:
+                parts = line.strip().split("/")
+                f.write(f"auth strong\nallow {parts[0]}\n")
+                f.write(f"proxy -6 -n -a -p{parts[3]} -i{parts[2]} -e{parts[4]}\nflush\n\n")
+
+# Proxy listesini oluşturma
+def proxy_txt():
+    with open("proxy.txt", "w") as f:
+        with open(VERI, "r") as veri_file:
+            for line in veri_file:
+                parts = line.strip().split("/")
+                f.write(f"{parts[2]}:{parts[3]}:{parts[0]}:{parts[1]}\n")
+
+# İndirme linkini oluşturma
 def file_io_yukle():
-    print("\n\n\t{}Zip Yükleniyor..{}".format(yesil, renkreset))
-    with zipfile.ZipFile('proxy.zip', 'w') as zf:
-        zf.write('veri.txt', arcname='veri.txt')
+    print("Zip Dosyası Oluşturuluyor...")
+    zip_password = rastgele()
+    subprocess.run(["zip", "--password", zip_password, "proxy.zip", "proxy.txt"])
+    with open("proxy.zip", "rb") as f:
+        response = requests.post("https://file.io", files={"file": f})
+    url = response.json().get("link", "")
+    print(f"Proxyler hazır! İndirme Bağlantısı: {url}")
+    print(f"Zip Şifresi: {zip_password}")
 
-    # URL'yi dosya.io üzerinden yüklemek için bir POST isteği gönder
-    with open('proxy.zip', 'rb') as f:
-        response = requests.post('https://file.io', files={'file': f})
-        json_response = response.json()
-        url = json_response['link']
+# Ana işlemler
+def main():
+    os.makedirs(YOL, exist_ok=True)
+    ip4 = subprocess.getoutput("curl -4 -s icanhazip.com")
+    ip6_subnet = subprocess.getoutput("curl -6 -s icanhazip.com | cut -f1-4 -d':'")
+    adet = int(input("Kaç adet IPv6 proxy oluşturmak istiyorsunuz? (Örnek 500): "))
 
-    print(f"\n{mor}Proxyler Hazır!{renkreset}")
-    print(f"\n{mor}Zip İndirme Bağlantısı:{yesil} {url}{renkreset}")
+    yukle_3proxy()
+    veri_olustur(ip4, ip6_subnet, adet)
+    iptable_olustur()
+    ifconfig_olustur()
+    config_3proxy()
+    proxy_txt()
+    file_io_yukle()
 
-IP4 = os.popen("curl -4 -s icanhazip.com").read().strip()
-IP6 = os.popen("curl -6 -s icanhazip.com").read().strip()
-
-
-print(f"\n\t{sari}IPv4 »{yesil} {IP4}{sari} | IPv6 için Sub »{yesil} {IP6}{renkreset}")
-print(f"\n\n\t{yesil}Gerekli Paketler Yükleniyor..{renkreset}\n")
-os.system("yum -y install gcc net-tools zip")
-
-# Ana akış
-adet = int(input("\nMor Kaç adet IPv6 proxy oluşturmak istiyorsunuz? Örnek 500: "))
-veri_olustur(adet)
-iptable_olustur()
-config_3proxy()
-yukle_3proxy()
-squid_yukle()
-socks5_yukle()
-jq_yukle()
-file_io_yukle()
-
-print(f"\n{sari}IPv4 Proxy »{yesil} {IP4}:{IPV4_PORT}:{KULLANICI}:{SIFRE}{renkreset}")
-print(f"{sari}SOCKS5 Proxy »{yesil} {IP4}:{SOCKS5_PORT}:{KULLANICI}:{SIFRE}{renkreset}\n")
+if __name__ == "__main__":
+    main()
