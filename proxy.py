@@ -53,7 +53,7 @@ def config_3proxy():
 def yukle_3proxy():
     print("\n\n\t{}3Proxy Yükleniyor..{}".format(yesil, renkreset))
     url = "https://github.com/keyiflerolsun/CentOS_Proxi/raw/main/Paketler/3proxy-3proxy-0.8.6.tar.gz"
-    os.system(f"wget -qO- {url} | tar -xvf -")
+    os.system(f"wget -qO- {url} | tar -zxvf -")  # -z bayrağı eklendi
     os.chdir("3proxy-3proxy-0.8.6")
     os.system("make -f Makefile.Linux")
     os.makedirs("/usr/local/etc/3proxy/bin", exist_ok=True)
