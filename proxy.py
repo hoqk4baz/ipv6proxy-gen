@@ -104,7 +104,15 @@ def proxy_txt():
 def jq_yukle():
     os.system("wget -qO jq https://github.com/keyiflerolsun/CentOS_Proxi/raw/main/Paketler/jq-linux64")
     os.chmod("jq", 0o755)
-    shutil.move("jq", "/usr/bin")
+    
+    # Hedef dosyanın mevcut olup olmadığını kontrol et
+    hedef_dosya = "/usr/bin/jq"
+    if os.path.exists(hedef_dosya):
+        # Mevcut dosyayı sil veya başka bir isimle taşı
+        os.remove(hedef_dosya)  # Alternatif olarak, mevcut dosyayı başka bir isimle taşıyabilirsiniz.
+    
+    shutil.move("jq", hedef_dosya)
+
 
 def zip_yukle():
     renkli_yaz("Zip Yükleniyor..", yesil)
