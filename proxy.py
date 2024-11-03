@@ -46,26 +46,31 @@ def ifconfig_olustur():
             f.write(f"ifconfig eth0 inet6 add {parts[4]}/64\n")
 
 def config_3proxy():
-    with open(VERI) as veri_dosyasi:
-        config_lines = [
-            "daemon",
-            "maxconn 1000",
-            "nscache 65536",
-            "timeouts 1 5 30 60 180 1800 15 60",
-            "setgid 65535",
-            "setuid 65535",
-            "flush",
-            "auth strong",
-            f"users {' '.join(f'{line.split('/')[0]}:CL:{line.split('/')[1]}' for line in veri_dosyasi)}",
-        ]
-    
-    return "\n".join(config_lines)
+    config_lines = [
+        "daemon",
+        "maxconn 1000",
+        "nscache 65536",
+        "timeouts 1 5 30 60 180 1800 15 60",
+        "setgid 65535",
+        "setuid 65535",
+        "flush",
+        "auth strong",
+    ]
 
-    for line in open(VERI):
-        parts = line.strip().split("/")
-        config_lines.append(f"auth strong\nallow {parts[0]}\nproxy -6 -n -a -p{parts[3]} -i{IP4} -e{parts[4]}\nflush\n")
+    # Kullanıcıları dosyadan al ve config_lines'a ekle
+    with open(VERI) as veri_file:
+        users = ' '.join(f"{line.split('/')[0]}:CL:{line.split('/')[1]}" for line in veri_file)
+    config_lines.append(f"users {users}")
+
+    # Konfigürasyonu oluştur ve dosyaya yaz
+    with open(VERI) as veri_file:
+        for line in veri_file:
+            parts = line.strip().split("/")
+            config_lines.append(f"auth strong\nallow {parts[0]}\nproxy -6 -n -a -p{parts[3]} -i{IP4} -e{parts[4]}\nflush\n")
+
     with open("/usr/local/etc/3proxy/3proxy.cfg", "w") as f:
         f.write("\n".join(config_lines))
+
 
 def yukle_3proxy():
     print(f"\n\n\t{yesil}3Proxy Yükleniyor..\n{renkreset}\n")
