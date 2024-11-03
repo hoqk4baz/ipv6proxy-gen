@@ -46,6 +46,7 @@ def ifconfig_olustur():
             f.write(f"ifconfig eth0 inet6 add {parts[4]}/64\n")
 
 def config_3proxy():
+    users = " ".join([f"{v.split('/')[0]}:CL:{v.split('/')[1]}" for v in veri])
     config_lines = [
         "daemon",
         "maxconn 1000",
@@ -55,7 +56,7 @@ def config_3proxy():
         "setuid 65535",
         "flush",
         "auth strong",
-        f"users {' '.join(f'{line.split('/')[0]}:CL:{line.split('/')[1]}' for line in open(VERI))}",
+        f"users {users}",
     ]
     for line in open(VERI):
         parts = line.strip().split("/")
